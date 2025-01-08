@@ -127,4 +127,30 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 
 ### Этап 2, Проработка моделей данных
 
-ToDo...
+Можно создать следующие [модели](./backend/models.py) на основе анализа
+- общего описания задач
+- описания приложения и основных сценариев - https://github.com/netology-code/python-final-diplom/blob/master/reference/service.md
+- особенностей точек входа приложения - https://github.com/netology-code/python-final-diplom/blob/master/reference/screens.md
+- особенностей импортируемых заготовленных данных - https://github.com/netology-code/python-final-diplom/blob/master/data/shop1.yaml
+- примерной спецификации api - https://documenter.getpostman.com/view/5037826/SVfJUrSc#a7ed103f-3429-415d-a7d5-c6f0d3ac9649
+- референса - https://github.com/netology-code/python-final-diplom/blob/master/reference/step-2.md (полный пример можно найти тут https://github.com/A-Iskakov/netology_pd_diplom/blob/master/backend/models.py) 
+
+
+#### 1. Добавляем свою модель пользователя и вспомогательных методов для него, не забыв указать в settings использовать свою модель
+- для тестирования можно выполнить
+  - python manage.py makemigrations
+  - python manage.py migrate
+  - python manage.py createsuperuser
+  - python manage.py runserver
+  - goto http://127.0.0.1:8000/admin
+- также протестировать можно через shell
+  - python manage.py shell
+  - from backend import User
+  - create or do smth
+- также можно попробовать через pytest
+  - pip install pytest-django
+  - pytest tests/backend/test_user_model.py
+
+#### 2. Добавляем другие модели
+
+ToDo ...
