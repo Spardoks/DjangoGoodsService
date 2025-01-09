@@ -154,5 +154,6 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 #### 2. Добавляем другие модели
 - Shop
 - Category
+- Product
 
 ToDo ...

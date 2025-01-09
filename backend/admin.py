@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from backend.models import User, Shop, Category
+from backend.models import User, Shop, Category, Product
 
 
 @admin.register(User)
@@ -27,4 +27,8 @@ class ShopAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
     pass

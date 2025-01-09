@@ -73,7 +73,6 @@ class User(AbstractUser):
         ordering = ('email',)
 
 
-
 class Shop(models.Model):
     name = models.CharField(max_length=50, verbose_name='Название')
     url = models.URLField(verbose_name='Ссылка', null=True, blank=True)
@@ -91,6 +90,7 @@ class Shop(models.Model):
     def __str__(self):
         return self.name
 
+
 class Category(models.Model):
     name = models.CharField(max_length=40, verbose_name='Название')
     shops = models.ManyToManyField(Shop, verbose_name='Магазины', related_name='categories', blank=True)
@@ -98,6 +98,20 @@ class Category(models.Model):
     class Meta:
         verbose_name = 'Категория'
         verbose_name_plural = "Список категорий"
+        ordering = ('-name',)
+
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=80, verbose_name='Название')
+    category = models.ForeignKey(Category, verbose_name='Категория', related_name='products', blank=True,
+                                 on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Продукт'
+        verbose_name_plural = "Список продуктов"
         ordering = ('-name',)
 
     def __str__(self):
