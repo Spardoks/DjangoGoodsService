@@ -152,5 +152,7 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
   - pytest tests/backend/test_user_model.py
 
 #### 2. Добавляем другие модели
+- Shop
+- Category
 
 ToDo ...
