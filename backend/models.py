@@ -134,3 +134,31 @@ class ProductInfo(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['product', 'shop'], name='unique_product_info'),
         ]
+
+
+class Parameter(models.Model):
+    name = models.CharField(max_length=40, verbose_name='Название')
+
+    class Meta:
+        verbose_name = 'Имя параметра'
+        verbose_name_plural = "Список имен параметров"
+        ordering = ('-name',)
+
+    def __str__(self):
+        return self.name
+
+
+class ProductParameter(models.Model):
+    product_info = models.ForeignKey(ProductInfo, verbose_name='Информация о продукте',
+                                     related_name='product_parameters', blank=True,
+                                     on_delete=models.CASCADE)
+    parameter = models.ForeignKey(Parameter, verbose_name='Параметр', related_name='product_parameters', blank=True,
+                                  on_delete=models.CASCADE)
+    value = models.CharField(verbose_name='Значение', max_length=100)
+
+    class Meta:
+        verbose_name = 'Параметр'
+        verbose_name_plural = "Список параметров"
+        constraints = [
+            models.UniqueConstraint(fields=['product_info', 'parameter'], name='unique_product_parameter'),
+        ]
