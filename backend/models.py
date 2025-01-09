@@ -71,3 +71,22 @@ class User(AbstractUser):
         verbose_name = 'Пользователь'
         verbose_name_plural = "Список пользователей"
         ordering = ('email',)
+
+
+
+class Shop(models.Model):
+    name = models.CharField(max_length=50, verbose_name='Название')
+    url = models.URLField(verbose_name='Ссылка', null=True, blank=True)
+    user = models.OneToOneField(User, verbose_name='Пользователь',
+                                blank=True, null=True,
+                                on_delete=models.CASCADE)
+    state = models.BooleanField(verbose_name='статус получения заказов', default=True)
+    # filename
+
+    class Meta:
+        verbose_name = 'Магазин'
+        verbose_name_plural = "Список магазинов"
+        ordering = ('-name',)
+
+    def __str__(self):
+        return self.name
