@@ -155,5 +155,6 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 - Shop
 - Category
 - Product
+- ProductInfo
 
 ToDo ...
