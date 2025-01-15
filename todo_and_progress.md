@@ -158,5 +158,7 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 - ProductInfo
 - Parametr
 - ProductParameter
+- Contact
+- Order
 
 ToDo ...

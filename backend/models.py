@@ -8,6 +8,7 @@ USER_TYPE_CHOICES = (
     ('buyer', 'Покупатель'),
 )
 
+
 class UserManager(BaseUserManager):
     """
     Миксин для управления пользователями
@@ -183,3 +184,33 @@ class Contact(models.Model):
 
     def __str__(self):
         return f'{self.city} {self.street} {self.house}'
+
+
+STATE_CHOICES = (
+    ('basket', 'Статус корзины'),
+    ('new', 'Новый'),
+    ('confirmed', 'Подтвержден'),
+    ('assembled', 'Собран'),
+    ('sent', 'Отправлен'),
+    ('delivered', 'Доставлен'),
+    ('canceled', 'Отменен'),
+)
+
+
+class Order(models.Model):
+    user = models.ForeignKey(User, verbose_name='Пользователь',
+                             related_name='orders', blank=True,
+                             on_delete=models.CASCADE)
+    dt = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(verbose_name='Статус', choices=STATE_CHOICES, max_length=15)
+    contact = models.ForeignKey(Contact, verbose_name='Контакт',
+                                blank=True, null=True,
+                                on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = "Список заказ"
+        ordering = ('-dt',)
+
+    def __str__(self):
+        return str(self.dt)
