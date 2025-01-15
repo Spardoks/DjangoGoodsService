@@ -162,4 +162,7 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 - Order
 - OrderItem
 
-ToDo ...
+Пока всё, если ещё понадобится, добавим в других этапах
+
+### Этап 3, Реализация импорта товаров
+ToDo...
