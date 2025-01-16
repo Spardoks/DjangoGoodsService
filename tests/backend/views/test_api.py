@@ -1,4 +1,5 @@
 import pytest
+import yaml
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -37,3 +38,29 @@ def test_user_list(base_test_users):
     got_emails = [u["email"] for u in resp_json]
     for user in base_test_users:
         assert user.email in got_emails
+
+
+@pytest.mark.django_db
+def test_update_shop_url():
+    client = APIClient()
+    url = reverse("update_shop")
+    params = {
+        "url": "https://raw.githubusercontent.com/Spardoks/DjangoGoodsService/refs/heads/master/tests/backend/models/test_shop.yaml",
+        "user": "test1@test.com",
+    }
+    resp = client.post(url, params)
+    assert resp.status_code == 200
+
+    resp_json = resp.json()
+    assert "url" in resp_json
+    assert "user" in resp_json
+    assert "data" in resp_json
+
+    assert resp_json["url"] == params["url"]
+    assert resp_json["user"] == params["user"]
+
+    with open("tests/backend/models/test_shop.yaml", "r", encoding="utf-8") as f:
+        data = yaml.safe_load(
+            f,
+        )
+    assert resp_json["data"] == data
