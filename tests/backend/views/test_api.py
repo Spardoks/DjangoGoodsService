@@ -1,3 +1,4 @@
+# ToDo: разделить тесты api и добавить большее покрытие
 import pytest
 import yaml
 from django.urls import reverse
@@ -120,3 +121,57 @@ def test_update_shop_by_url(base_test_users):
                 product_info_id=product_info.id, parameter_id=parameter_object.id
             ).first()
             assert product_parameter.value == str(value)
+
+
+@pytest.mark.django_db
+def test_register_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    client = APIClient()
+    url = reverse("register_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert resp_json["Status"] == True
+
+    assert User.objects.count() == 1
+    user = User.objects.filter(email=params["email"]).first()
+    assert user is not None
+
+
+@pytest.mark.django_db
+def test_login_and_do_authorized_action_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    user = User.objects.create_user(**params)
+    assert User.objects.count() == 1
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "token" in resp_json
+    assert resp_json["Status"] == True
+    assert resp_json["token"] is not None
+
+    header = {"Authorization": f"Token {resp_json['token']}"}
+    url = reverse("do_authorized_action")
+    resp = client.post(url, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp = client.post(url, headers={})
+    assert resp.status_code == 403
+    assert resp.json()["Error"] == "Пользователь не авторизован"
