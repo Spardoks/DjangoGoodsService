@@ -11,6 +11,7 @@ from backend.models import (
     User,
 )
 
+from backend.serializers import import_shop
 
 def test_read_test_shop_file():
     shop_name = "Связной"
@@ -29,58 +30,41 @@ def test_read_test_shop_file():
 
 @pytest.mark.django_db
 def test_import_test_shop():
+    assert Shop.objects.count() == 0
+    assert User.objects.count() == 0
+
+    # define user
+    user = User.objects.create_user(email="test_user@test_mail.com", type="shop")
+    assert User.objects.count() == 1
+
     # get data
     with open("tests/backend/models/test_shop.yaml", "r", encoding="utf-8") as f:
         data = yaml.safe_load(
             f,
         )
-        shop = data["shop"]
-        categories = data["categories"]
-        goods = data["goods"]
+    result = import_shop(user, data)
+    assert "Status" in result
+    assert "actual_categories_id" in result
+    assert "actual_products_id" in result
+    assert result["Status"] == True
 
-    # define user
-    user = User.objects.create_user(email="test_user@test_mail.com", type="shop")
+    assert User.objects.count() == 1
+    assert Shop.objects.count() == 1
+    shop_by_user = Shop.objects.filter(user_id=user.id).first()
+    shop_by_name = Shop.objects.filter(name=data["shop"]).first()
+    assert shop_by_user == shop_by_name
 
-    # create shop
-    shop, _ = Shop.objects.get_or_create(name=shop, user_id=user.id)
+    actual_categories_id = result["actual_categories_id"]
+    actual_products_id = result["actual_products_id"]
+    categories = data["categories"]
+    goods = data["goods"]
 
-    # create categories
-    actual_categories_id = {}
-    for category in categories:
-        category_object, _ = Category.objects.get_or_create(name=category["name"])
-        category_object.shops.add(shop.id)
-        category_object.save()
-        actual_categories_id[category["id"]] = category_object.id
-
-    # create products, product_infos, parameters and product_parameters
-    ProductInfo.objects.filter(shop_id=shop.id).delete()
-
-    actual_products_id = {}
-    for item in goods:
-        product, _ = Product.objects.get_or_create(
-            name=item["name"], category_id=actual_categories_id[item["category"]]
-        )
-        actual_products_id[item["id"]] = product.id
-
-        product_info = ProductInfo.objects.create(
-            product_id=product.id,
-            model=item["model"],
-            price=item["price"],
-            price_rrc=item["price_rrc"],
-            quantity=item["quantity"],
-            shop_id=shop.id,
-        )
-        for name, value in item["parameters"].items():
-            parameter_object, _ = Parameter.objects.get_or_create(name=name)
-            ProductParameter.objects.create(
-                product_info_id=product_info.id,
-                parameter_id=parameter_object.id,
-                value=value,
-            )
-
+    assert len(actual_categories_id) == len(categories)
+    assert len(actual_products_id) == len(goods)
     assert Category.objects.count() == len(categories)
     assert Product.objects.count() == len(goods)
     assert ProductInfo.objects.count() == len(goods)
+    shop = shop_by_name
     for item in goods:
         product = Product.objects.filter(id=actual_products_id[item["id"]]).first()
         assert product.name == item["name"]
