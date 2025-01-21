@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.db.models import Q
 from requests import get
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
@@ -8,8 +9,8 @@ from rest_framework.views import exception_handler
 from yaml import Loader
 from yaml import load as load_yaml
 
-from backend.models import USER_TYPE_CHOICES, User
-from backend.serializers import UserSerializer, import_shop
+from backend.models import USER_TYPE_CHOICES, ProductInfo, User
+from backend.serializers import ProductInfoSerializer, UserSerializer, import_shop
 
 
 # Сейчас используется для 401 Unauthorized приведения к единому виду
@@ -214,3 +215,31 @@ def logout_user(request):
         )
     request.user.auth_token.delete()
     return Response({"Status": True}, status=200)
+
+
+# ToDo: other error message when exception
+@api_view(["GET"])
+def list_products(request):
+    try:
+        query = Q(shop__state=True)
+        shop_id = request.query_params.get("shop_id")
+        category_id = request.query_params.get("category_id")
+
+        if shop_id:
+            query = query & Q(shop_id=shop_id)
+
+        if category_id:
+            query = query & Q(product__category_id=category_id)
+
+        # фильтруем и отбрасываем дуликаты
+        queryset = (
+            ProductInfo.objects.filter(query)
+            .select_related("shop", "product__category")
+            .prefetch_related("product_parameters__parameter")
+            .distinct()
+        )
+        serializer = ProductInfoSerializer(queryset, many=True)
+    except Exception as e:
+        return Response({"Status": False, "Error": str(e)}, status=403)
+
+    return Response({"Status": True, "products": serializer.data}, status=200)
