@@ -12,6 +12,7 @@ from backend.models import USER_TYPE_CHOICES, User
 from backend.serializers import UserSerializer, import_shop
 
 
+# Сейчас используется для 401 Unauthorized приведения к единому виду
 # https://www.django-rest-framework.org/api-guide/exceptions/#custom-exception-handling
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
@@ -23,18 +24,34 @@ def custom_exception_handler(exc, context):
     return response
 
 
-# ToDo: сделать ответ по спецификации
-@api_view(["GET"])
-def ping_view(request):
-    return Response({"status": "OK"})
+###################################################
 
 
-# ToDo: сделать ответ по спецификации
+# For testing
 @api_view(["GET"])
-def user_list(request):
+def test_ping_view(request):
+    return Response({"Status": True}, status=200)
+
+
+# For testing
+@api_view(["GET"])
+def test_user_list(request):
     users = User.objects.all()
     serializer = UserSerializer(users, many=True)
-    return Response(serializer.data)
+    return Response({"Status": True, "users": serializer.data}, status=200)
+
+
+# For testing
+@api_view(["POST"])
+def test_do_authorized_action(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"Status": False, "Error": "Пользователь не опознан"}, status=403
+        )
+    return Response({"Status": True}, status=200)
+
+
+###################################################
 
 
 # ToDo: сделать ответ по спецификации
@@ -186,15 +203,6 @@ def login_user(request):
         )
 
     return Response({"Status": True, "token": str(token)}, status=200)
-
-
-@api_view(["POST"])
-def do_authorized_action(request):
-    if not request.user.is_authenticated:
-        return Response(
-            {"Status": False, "Error": "Пользователь не опознан"}, status=403
-        )
-    return Response({"Status": True}, status=200)
 
 
 # ToDo
