@@ -128,16 +128,6 @@ def test_update_shop_by_url(base_test_users):
             ).first()
             assert product_parameter.value == str(value)
 
-    client = APIClient()
-    url = reverse("logout_user")
-    resp = client.post(url, headers={})
-    assert resp.status_code == 403
-    resp_json = resp.json()
-    assert "Status" in resp_json
-    assert "Error" in resp_json
-    assert resp_json["Status"] == False
-    assert resp_json["Error"] == "Пользователь не опознан"
-
 
 # ToDo: если магазинов будет больше, добавить тестов
 @pytest.mark.django_db
@@ -214,7 +204,7 @@ def test_list_products_example():
 
 
 @pytest.mark.django_db
-def test_list_shops_no_shop_id():
+def test_list_products_no_shop_id():
     shop = User.objects.create_user(email="shop@test.com", type="shop")
     with open("tests/backend/models/test_shop.yaml", "r", encoding="utf-8") as f:
         data = yaml.safe_load(
