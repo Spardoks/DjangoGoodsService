@@ -4,11 +4,23 @@ from requests import get
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import exception_handler
 from yaml import Loader
 from yaml import load as load_yaml
 
 from backend.models import USER_TYPE_CHOICES, User
 from backend.serializers import UserSerializer, import_shop
+
+
+# https://www.django-rest-framework.org/api-guide/exceptions/#custom-exception-handling
+def custom_exception_handler(exc, context):
+    response = exception_handler(exc, context)
+    if response is not None and response.status_code == 401:
+        data = {"Status": False, "Error": "Пользователь не авторизован"}
+        response.status_code = 403
+        response.data = data
+
+    return response
 
 
 # ToDo: сделать ответ по спецификации
@@ -150,6 +162,11 @@ def register_user(request):
 # ToDo: также попробовать POST-запрос на api-token-auth с именем пользователя и паролем
 @api_view(["POST"])
 def login_user(request):
+    if request.user.is_authenticated:
+        return Response(
+            {"Status": False, "Error": "Пользователь уже авторизован"}, status=403
+        )
+
     user_email = request.data.get("email")
     user_password = request.data.get("password")
 
@@ -175,17 +192,17 @@ def login_user(request):
 def do_authorized_action(request):
     if not request.user.is_authenticated:
         return Response(
-            {"Status": False, "Error": "Пользователь не авторизован"}, status=403
+            {"Status": False, "Error": "Пользователь не опознан"}, status=403
         )
     return Response({"Status": True}, status=200)
 
 
 # ToDo
-# @api_view(["POST"])
-# def logout_user(request):
-#     if not request.user.is_authenticated:
-#         return Response(
-#             {"Status": False, "Error": "Пользователь не авторизован"}, status=403
-#         )
-#     request.user.auth_token.delete()
-#     return Response({"Status": True}, status=200)
+@api_view(["POST"])
+def logout_user(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"Status": False, "Error": "Пользователь не опознан"}, status=403
+        )
+    request.user.auth_token.delete()
+    return Response({"Status": True}, status=200)

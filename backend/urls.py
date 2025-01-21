@@ -3,6 +3,7 @@ from django.urls import path
 from backend.views import (
     do_authorized_action,
     login_user,
+    logout_user,
     ping_view,
     register_user,
     update_shop,
@@ -16,4 +17,5 @@ urlpatterns = [
     path("v1/register_user/", register_user, name="register_user"),
     path("v1/login_user/", login_user, name="login_user"),
     path("v1/do_authorized_action/", do_authorized_action, name="do_authorized_action"),
+    path("v1/logout_user/", logout_user, name="logout_user"),
 ]

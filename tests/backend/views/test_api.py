@@ -171,7 +171,119 @@ def test_login_and_do_authorized_action_example():
     url = reverse("do_authorized_action")
     resp = client.post(url, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
 
     resp = client.post(url, headers={})
     assert resp.status_code == 403
-    assert resp.json()["Error"] == "Пользователь не авторизован"
+    assert "Status" in resp.json()
+    assert "Error" in resp.json()
+    assert resp.json()["Status"] == False
+    assert resp.json()["Error"] == "Пользователь не опознан"
+
+
+@pytest.mark.django_db
+def test_logout_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    user = User.objects.create_user(**params)
+    assert User.objects.count() == 1
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    header = {"Authorization": f"Token {resp.json()['token']}"}
+    url = reverse("logout_user")
+    resp = client.post(url, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    url = reverse("do_authorized_action")
+    resp = client.post(url, headers=header)
+    assert resp.status_code == 403
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "Error" in resp_json
+    assert resp_json["Status"] == False
+    assert resp_json["Error"] == "Пользователь не авторизован"
+
+
+@pytest.mark.django_db
+def test_login_logout_twice():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    user = User.objects.create_user(**params)
+    assert User.objects.count() == 1
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    header = {"Authorization": f"Token {resp.json()['token']}"}
+    resp = client.post(url, params, headers=header)
+    assert resp.status_code == 403
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "Error" in resp_json
+    assert resp_json["Status"] == False
+    assert resp_json["Error"] == "Пользователь уже авторизован"
+
+    url = reverse("logout_user")
+    resp = client.post(url, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp = client.post(url, headers=header)
+    assert resp.status_code == 403
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "Error" in resp_json
+    assert resp_json["Status"] == False
+    assert resp_json["Error"] == "Пользователь не авторизован"
+
+
+@pytest.mark.django_db
+def test_login_no_token_after_success_login():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    user = User.objects.create_user(**params)
+    assert User.objects.count() == 1
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp = client.post(url, params)
+    assert resp.status_code == 403
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "Error" in resp_json
+    assert resp_json["Status"] == False
+    assert resp_json["Error"] == "Не удалось создать токен"
+
+
+@pytest.mark.django_db
+def test_logout_no_token():
+    client = APIClient()
+    url = reverse("logout_user")
+    resp = client.post(url, headers={})
+    assert resp.status_code == 403
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert "Error" in resp_json
+    assert resp_json["Status"] == False
+    assert resp_json["Error"] == "Пользователь не опознан"
