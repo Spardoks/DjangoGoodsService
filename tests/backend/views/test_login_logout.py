@@ -6,7 +6,7 @@ from backend.models import User
 
 
 @pytest.mark.django_db
-def test_register_example():
+def test_register_buyer_example():
     params = {
         "email": "test_user@test_mail.com",
         "password": "test_password",
@@ -25,6 +25,77 @@ def test_register_example():
     assert User.objects.count() == 1
     user = User.objects.filter(email=params["email"]).first()
     assert user is not None
+    assert user.email == params["email"]
+    assert user.type == params["type"]
+
+
+@pytest.mark.django_db
+def test_register_shop_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "shop",
+    }
+
+    client = APIClient()
+    url = reverse("register_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert resp_json["Status"] == True
+
+    assert User.objects.count() == 1
+    user = User.objects.filter(email=params["email"]).first()
+    assert user is not None
+    assert user.email == params["email"]
+    assert user.type == params["type"]
+
+
+@pytest.mark.django_db
+def test_register_invalid_type_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "client",
+    }
+
+    client = APIClient()
+    url = reverse("register_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 403, resp.json()["Error"]
+
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert resp_json["Status"] == False
+    assert "Error" in resp_json
+    assert resp_json["Error"] == "Неверный тип пользователя"
+
+
+@pytest.mark.django_db
+def test_register_duplicate_email_example():
+    params = {
+        "email": "test_user@test_mail.com",
+        "password": "test_password",
+        "type": "buyer",
+    }
+
+    client = APIClient()
+    url = reverse("register_user")
+    resp = client.post(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    resp = client.post(url, params)
+    assert resp.status_code == 403, resp.json()["Error"]
+
+    resp_json = resp.json()
+    assert "Status" in resp_json
+    assert resp_json["Status"] == False
+    assert "Error" in resp_json
+    assert resp_json["Error"] == "Пользователь уже существует"
+
+    assert User.objects.count() == 1
 
 
 @pytest.mark.django_db
