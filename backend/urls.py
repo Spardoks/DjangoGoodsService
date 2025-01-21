@@ -12,16 +12,16 @@ from backend.views import (
 
 urlpatterns = [
     # test
-    path("v1/ping/", test_ping_view, name="test_ping_view"),
-    path("v1/users/", test_user_list, name="test_user_list"),
+    path("test/ping/", test_ping_view, name="test_ping_view"),
+    path("test/users/", test_user_list, name="test_user_list"),
     path(
-        "v1/do_authorized_action/",
+        "test/do_authorized_action/",
         test_do_authorized_action,
         name="test_do_authorized_action",
     ),
     # other
-    path("v1/update_shop/", update_shop, name="update_shop"),
-    path("v1/register_user/", register_user, name="register_user"),
-    path("v1/login_user/", login_user, name="login_user"),
-    path("v1/logout_user/", logout_user, name="logout_user"),
+    path("parnter/update/", update_shop, name="update_shop"),
+    path("user/register/", register_user, name="register_user"),
+    path("user/login/", login_user, name="login_user"),
+    path("user/logout/", logout_user, name="logout_user"),
 ]
