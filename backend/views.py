@@ -1,6 +1,9 @@
+from json import loads as load_json
+
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from django.db.models import Q
+from django.db import IntegrityError
+from django.db.models import F, Q, Sum
 from requests import get
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
@@ -9,9 +12,22 @@ from rest_framework.views import APIView, exception_handler
 from yaml import Loader
 from yaml import load as load_yaml
 
-from backend.models import USER_TYPE_CHOICES, Contact, ProductInfo, User
-from backend.serializers import (ContactSerializer, ProductInfoSerializer,
-                                 UserSerializer, import_shop)
+from backend.models import (
+    USER_TYPE_CHOICES,
+    Contact,
+    Order,
+    OrderItem,
+    ProductInfo,
+    User,
+)
+from backend.serializers import (
+    ContactSerializer,
+    OrderItemSerializer,
+    OrderSerializer,
+    ProductInfoSerializer,
+    UserSerializer,
+    import_shop,
+)
 
 
 # Сейчас используется для 401 Unauthorized приведения к единому виду
@@ -256,7 +272,7 @@ class ContactView(APIView):
             )
         contact = Contact.objects.filter(user_id=request.user.id)
         serializer = ContactSerializer(contact, many=True)
-        return Response({"Status": True, "contacts": serializer.data})
+        return Response({"Status": True, "contacts": serializer.data}, status=200)
 
     # добавить новый контакт
     def post(self, request, *args, **kwargs):
@@ -272,12 +288,15 @@ class ContactView(APIView):
 
             if serializer.is_valid():
                 serializer.save()
-                return Response({"Status": True})
+                return Response({"Status": True}, status=200)
             else:
-                Response({"Status": False, "Error": serializer.errors})
+                return Response(
+                    {"Status": False, "Error": serializer.errors}, status=403
+                )
 
         return Response(
-            {"Status": False, "Error": "Не указаны все необходимые аргументы"}
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
         )
 
     # удалить контакт
@@ -299,25 +318,176 @@ class ContactView(APIView):
 
             if objects_deleted:
                 deleted_count = Contact.objects.filter(query).delete()[0]
-                return Response({"Status": True, "deleted": deleted_count})
+                return Response({"Status": True, "deleted": deleted_count}, status=200)
         return Response(
-            {"Status": False, "Error": "Не указаны все необходимые аргументы"}
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
         )
 
     # редактировать контакт
     def put(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return Response({"Status": False, "Error": "Нужно быть залогиненным"}, status=403)
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
 
         if "id" in request.data:
             if request.data["id"].isdigit():
-                contact = Contact.objects.filter(id=request.data["id"], user_id=request.user.id).first()
+                contact = Contact.objects.filter(
+                    id=request.data["id"], user_id=request.user.id
+                ).first()
                 if contact:
-                    serializer = ContactSerializer(contact, data=request.data, partial=True)
+                    serializer = ContactSerializer(
+                        contact, data=request.data, partial=True
+                    )
                     if serializer.is_valid():
                         serializer.save()
-                        return Response({"Status": True})
+                        return Response({"Status": True}, status=200)
                     else:
-                        Response({"Status": False, "Error": serializer.errors})
+                        return Response(
+                            {"Status": False, "Error": serializer.errors}, status=403
+                        )
 
-        return Response({"Status": False, "Error": "Не указаны все необходимые аргументы"})
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
+
+
+# ToDo: add delete orders if no order_items
+# ToDo: add errors if order status is not basket
+class BasketView(APIView):
+
+    # получить корзину
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+        basket = (
+            Order.objects.filter(user_id=request.user.id, state="basket")
+            .prefetch_related(
+                "ordered_items__product_info__product__category",
+                "ordered_items__product_info__product_parameters__parameter",
+            )
+            .annotate(
+                total_sum=Sum(
+                    F("ordered_items__quantity")
+                    * F("ordered_items__product_info__price")
+                )
+            )
+            .distinct()
+        )
+
+        serializer = OrderSerializer(basket, many=True)
+        return Response({"Status": True, "orders": serializer.data}, status=200)
+
+    # добавить товары в корзину
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        items_sting = request.data.get("items")
+        if items_sting:
+            try:
+                items_dict = load_json(items_sting)
+            except ValueError:
+                return Response(
+                    {"Status": False, "Error": "Неверный формат запроса"}, status=403
+                )
+            else:
+                basket, _ = Order.objects.get_or_create(
+                    user_id=request.user.id, state="basket"
+                )
+                objects_created = 0
+                for order_item in items_dict:
+                    order_item.update({"order": basket.id})
+                    serializer = OrderItemSerializer(data=order_item)
+                    if serializer.is_valid():
+                        try:
+                            serializer.save()
+                        except IntegrityError as error:
+                            return Response(
+                                {"Status": False, "Error": str(error)}, status=403
+                            )
+                        else:
+                            objects_created += 1
+                    else:
+                        return Response(
+                            {"Status": False, "Error": serializer.errors}, status=403
+                        )
+
+                return Response(
+                    {"Status": True, "created": objects_created}, status=200
+                )
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
+
+    # удалить товары из корзины
+    def delete(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        items_sting = request.data.get("items")
+        if items_sting:
+            items_list = items_sting.split(",")
+            basket, _ = Order.objects.get_or_create(
+                user_id=request.user.id, state="basket"
+            )
+            query = Q()
+            objects_deleted = False
+            for order_item_id in items_list:
+                if order_item_id.isdigit():
+                    query = query | Q(order_id=basket.id, id=order_item_id)
+                    objects_deleted = True
+
+            if objects_deleted:
+                deleted_count = OrderItem.objects.filter(query).delete()[0]
+                return Response({"Status": True, "deleted": deleted_count}, status=200)
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
+
+    # обновить позиции в корзине
+    def put(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        items_sting = request.data.get("items")
+        if items_sting:
+            try:
+                items_dict = load_json(items_sting)
+            except ValueError:
+                return Response(
+                    {"Status": False, "Error": "Неверный формат запроса"}, status=403
+                )
+            else:
+                basket, _ = Order.objects.get_or_create(
+                    user_id=request.user.id, state="basket"
+                )
+                objects_updated = 0
+                for order_item in items_dict:
+                    if (
+                        type(order_item["order_item_id"]) == int
+                        and type(order_item["quantity"]) == int
+                    ):
+                        objects_updated += OrderItem.objects.filter(
+                            order_id=basket.id, id=order_item["order_item_id"]
+                        ).update(quantity=order_item["quantity"])
+
+                return Response(
+                    {"Status": True, "updated": objects_updated}, status=200
+                )
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
