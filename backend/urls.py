@@ -1,6 +1,7 @@
 from django.urls import path
 
 from backend.views import (
+    ContactView,
     list_products,
     login_user,
     logout_user,
@@ -25,5 +26,6 @@ urlpatterns = [
     path("user/register/", register_user, name="register_user"),
     path("user/login/", login_user, name="login_user"),
     path("user/logout/", logout_user, name="logout_user"),
+    path("user/contact/", ContactView.as_view(), name="user-contact"),
     path("products/", list_products, name="list_products"),
 ]

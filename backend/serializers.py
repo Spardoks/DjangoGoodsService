@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from backend.models import (
     Category,
+    Contact,
     Parameter,
     Product,
     ProductInfo,
@@ -115,3 +116,21 @@ class ProductInfoSerializer(serializers.ModelSerializer):
             "product_parameters",
         )
         read_only_fields = ("id",)
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = (
+            "id",
+            "city",
+            "street",
+            "house",
+            "structure",
+            "building",
+            "apartment",
+            "user",
+            "phone",
+        )
+        read_only_fields = ("id",)
+        extra_kwargs = {"user": {"write_only": True}}
