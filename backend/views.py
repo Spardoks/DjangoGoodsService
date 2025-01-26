@@ -12,22 +12,11 @@ from rest_framework.views import APIView, exception_handler
 from yaml import Loader
 from yaml import load as load_yaml
 
-from backend.models import (
-    USER_TYPE_CHOICES,
-    Contact,
-    Order,
-    OrderItem,
-    ProductInfo,
-    User,
-)
-from backend.serializers import (
-    ContactSerializer,
-    OrderItemSerializer,
-    OrderSerializer,
-    ProductInfoSerializer,
-    UserSerializer,
-    import_shop,
-)
+from backend.models import (USER_TYPE_CHOICES, Contact, Order, OrderItem,
+                            ProductInfo, User)
+from backend.serializers import (ContactSerializer, OrderItemSerializer,
+                                 OrderSerializer, ProductInfoSerializer,
+                                 UserSerializer, import_shop)
 
 
 # Сейчас используется для 401 Unauthorized приведения к единому виду
@@ -491,3 +480,44 @@ class BasketView(APIView):
             {"Status": False, "Error": "Не указаны все необходимые аргументы"},
             status=403,
         )
+
+
+class OrderView(APIView):
+    """
+    Класс для получения и размешения заказов пользователями
+    """
+
+    # получить мои заказы
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({"Status": False, "Error": "Нужно быть залогиненным"}, status=403)
+        order = Order.objects.filter(
+            user_id=request.user.id).exclude(state="basket").prefetch_related(
+            "ordered_items__product_info__product__category",
+            "ordered_items__product_info__product_parameters__parameter").select_related("contact").annotate(
+            total_sum=Sum(F("ordered_items__quantity") * F("ordered_items__product_info__price"))).distinct()
+
+        serializer = OrderSerializer(order, many=True)
+        return Response({"Status": True, "orders": serializer.data}, status=200)
+
+    # разместить заказ из корзины
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({"Status": False, "Error": "Нужно быть залогиненным"}, status=403)
+
+        if {"basket_id", "contact_id"}.issubset(request.data):
+            if request.data["basket_id"].isdigit():
+                try:
+                    is_updated = Order.objects.filter(
+                        user_id=request.user.id, id=request.data["basket_id"]).update(
+                        contact_id=request.data["contact_id"],
+                        state="new")
+                except IntegrityError as error:
+                    print(error)
+                    return Response({"Status": False, "Error": "Неправильно указаны аргументы"}, status=403)
+                else:
+                    if is_updated:
+                        # ToDo: отправить уведомление магазину о новом заказе
+                        return Response({"Status": True}, status=200)
+
+        return Response({"Status": False, "Error": "Не указаны все необходимые аргументы"}, status=403)

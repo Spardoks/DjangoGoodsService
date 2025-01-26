@@ -6,8 +6,18 @@ import yaml
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from backend.models import (Category, Contact, Order, OrderItem, Parameter,
-                            Product, ProductInfo, ProductParameter, Shop, User)
+from backend.models import (
+    Category,
+    Contact,
+    Order,
+    OrderItem,
+    Parameter,
+    Product,
+    ProductInfo,
+    ProductParameter,
+    Shop,
+    User,
+)
 from backend.serializers import import_shop
 
 
@@ -355,7 +365,6 @@ def test_create_and_get_contact_example():
     assert contact_db.apartment == contact_params["apartment"]
     assert contact_db.phone == contact_params["phone"]
 
-
     resp = client.get(url, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
     resp_json = resp.json()
@@ -417,9 +426,7 @@ def test_delete_contact_example():
     assert Contact.objects.count() == 1
 
     contact_id = Contact.objects.get(user=user).id
-    delete_data = {
-        "items": str(contact_id) + ","
-    }
+    delete_data = {"items": str(contact_id) + ","}
     url = reverse("user-contact")
     resp = client.delete(url, delete_data, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
@@ -516,7 +523,10 @@ def test_create_and_get_basket_example():
         },
     ]
     assert ProductInfo.objects.filter(id=items[0]["product_info"]).exists()
-    assert ProductInfo.objects.get(id=items[0]["product_info"]).quantity >= items[0]["quantity"]
+    assert (
+        ProductInfo.objects.get(id=items[0]["product_info"]).quantity
+        >= items[0]["quantity"]
+    )
     data = {
         "items": json.dumps(items),
     }
@@ -543,7 +553,6 @@ def test_create_and_get_basket_example():
     assert order_item_db.quantity == 1
     assert order_item_db.product_info.id == items[0]["product_info"]
 
-
     resp = client.get(url, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
     assert "Status" in resp.json()
@@ -563,7 +572,7 @@ def test_create_and_get_basket_example():
 
     assert order["id"] == order_db.id
     assert order["state"] == order_db.state
-    assert order["dt"] == order_db.dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    assert order["dt"] == order_db.dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     assert order["total_sum"] == items[0]["quantity"] * order_item_db.product_info.price
     assert order["contact"] == None
 
@@ -607,7 +616,9 @@ def test_create_and_get_basket_example():
     product_parameters = product_info["product_parameters"]
     assert len(product_parameters) == prdouct_info_db.product_parameters.count()
 
-    product_parametrs_db = ProductParameter.objects.filter(product_info=items[0]["product_info"])
+    product_parametrs_db = ProductParameter.objects.filter(
+        product_info=items[0]["product_info"]
+    )
     for parameter in product_parameters:
         assert "parameter" in parameter
         assert "value" in parameter
@@ -650,9 +661,7 @@ def test_delete_order_items_example():
     assert resp.status_code == 200, resp.json()["Error"]
 
     header = {"Authorization": f"Token {resp.json()['token']}"}
-    params = {
-        "items": str(order_item.id) + ","
-    }
+    params = {"items": str(order_item.id) + ","}
     url = reverse("basket")
     resp = client.delete(url, params, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
@@ -699,7 +708,10 @@ def test_update_order_items_example():
         },
     ]
     assert ProductInfo.objects.filter(id=items[0]["order_item_id"]).exists()
-    assert ProductInfo.objects.get(id=items[0]["order_item_id"]).quantity >= items[0]["quantity"]
+    assert (
+        ProductInfo.objects.get(id=items[0]["order_item_id"]).quantity
+        >= items[0]["quantity"]
+    )
     assert items[0]["quantity"] != quantity
     data = {
         "items": json.dumps(items),
@@ -719,3 +731,143 @@ def test_update_order_items_example():
 
     order_item_db = OrderItem.objects.get(id=order_item.id)
     assert order_item_db.quantity == items[0]["quantity"]
+
+
+# orders
+##############################################
+
+
+@pytest.mark.django_db
+def test_create_and_get_order_example():
+    shop_db = Shop.objects.create(name="test_shop")
+    category_db = Category.objects.create(name="test_category")
+    product_db = Product.objects.create(name="test_product", category=category_db)
+    product_info_db = ProductInfo.objects.create(
+        product=product_db, shop=shop_db, quantity=10, price=100, price_rrc=200
+    )
+
+    email = "test_user@test_mail.com"
+    password = "test_password"
+    user_db = User.objects.create_user(email=email, password=password, type="buyer")
+    order_db = Order.objects.create(user=user_db, state="basket")
+    quantity = 5
+    order_item_db = OrderItem.objects.create(
+        order=order_db, product_info=product_info_db, quantity=quantity
+    )
+    assert Order.objects.count() == 1
+    assert order_db.ordered_items.count() == 1
+    assert order_db.contact is None
+
+    city = "test_city"
+    street = "test_street"
+    house = "test_house"
+    structure = "test_structure"
+    building = "test_building"
+    apartment = "test_apartment"
+    phone = "test_phone"
+    contact_db = Contact.objects.create(
+        user=user_db,
+        city=city,
+        street=street,
+        house=house,
+        structure=structure,
+        building=building,
+        apartment=apartment,
+        phone=phone,
+    )
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, {"email": email, "password": password})
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    header = {"Authorization": f"Token {resp.json()['token']}"}
+    params = {"basket_id": order_db.id, "contact_id": contact_db.id}
+    url = reverse("orders")
+    resp = client.post(url, params, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    order_db = Order.objects.get(id=order_db.id)
+    assert order_db.state == "new"
+    assert order_db.contact is not None
+    assert order_db.contact.id == contact_db.id
+
+    resp = client.get(url, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    assert "orders" in resp.json()
+    assert len(resp.json()["orders"]) == 1
+
+    order = resp.json()["orders"][0]
+    assert "id" in order
+    assert "state" in order
+    assert "dt" in order
+    assert "total_sum" in order
+    assert "contact" in order
+    assert "ordered_items" in order
+
+    assert order["id"] == order_db.id
+    assert order["state"] == order_db.state
+    assert order["dt"] == order_db.dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    assert order["total_sum"] == quantity * order_item_db.product_info.price
+    assert order["contact"] is not None
+    assert order["ordered_items"] is not None
+
+    contact = order["contact"]
+    assert "id" in contact
+    assert "city" in contact
+    assert "street" in contact
+    assert "house" in contact
+    assert "structure" in contact
+    assert "building" in contact
+    assert "apartment" in contact
+    assert "phone" in contact
+
+    assert contact["id"] == contact_db.id
+    assert contact["city"] == contact_db.city
+    assert contact["street"] == contact_db.street
+    assert contact["house"] == contact_db.house
+    assert contact["structure"] == contact_db.structure
+    assert contact["building"] == contact_db.building
+    assert contact["apartment"] == contact_db.apartment
+    assert contact["phone"] == contact_db.phone
+
+    assert len(order["ordered_items"]) == 1
+    order_item = order["ordered_items"][0]
+
+    assert "id" in order_item
+    assert "product_info" in order_item
+    assert "quantity" in order_item
+    assert "order" not in order_item
+
+    assert order_item["id"] == order_item_db.id
+    assert order_item["quantity"] == order_item_db.quantity
+    assert order_item["quantity"] == quantity
+
+    product_info = order_item["product_info"]
+    assert "id" in product_info
+    assert "model" in product_info
+    assert "product" in product_info
+    assert "shop" in product_info
+    assert "quantity" in product_info
+    assert "price" in product_info
+    assert "price_rrc" in product_info
+    assert "product_parameters" in product_info
+
+    assert product_info["id"] == product_info_db.id
+    assert product_info["model"] == product_info_db.model
+    assert product_info["shop"] == product_info_db.shop.id
+    assert product_info["quantity"] == product_info_db.quantity
+    assert product_info["price"] == product_info_db.price
+    assert product_info["price_rrc"] == product_info_db.price_rrc
+    assert len(product_info["product_parameters"]) == 0
+
+    assert "name" in product_info["product"]
+    assert "category" in product_info["product"]
+
+    assert product_info["product"]["name"] == product_db.name
+    assert product_info["product"]["category"] == product_db.category.name
