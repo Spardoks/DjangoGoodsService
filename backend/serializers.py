@@ -172,3 +172,21 @@ class OrderSerializer(serializers.ModelSerializer):
             "contact",
         )
         read_only_fields = ("id",)
+
+
+class ShopContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email"]
+
+
+class ShopSerializer(serializers.ModelSerializer):
+    contact = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shop
+        fields = ("id", "name", "state", "url", "contact")
+        read_only_fields = ("id",)
+
+    def get_contact(self, obj):
+        return ShopContactSerializer(obj.user).data

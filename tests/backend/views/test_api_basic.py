@@ -871,3 +871,38 @@ def test_create_and_get_order_example():
 
     assert product_info["product"]["name"] == product_db.name
     assert product_info["product"]["category"] == product_db.category.name
+
+
+
+# shops
+##############################################
+@pytest.mark.django_db
+def test_get_shops_list():
+    shop_user_db = User.objects.create_user(email="shop@test.com", type="shop")
+    shop_db = Shop.objects.create(name="test_shop", user=shop_user_db, state=True, url="https://test_shop.com")
+
+    client = APIClient()
+    url = reverse("list_shops")
+    params = {"shop_id": shop_db.id} # or empty for all shops
+    resp = client.get(url, params)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    assert "shops" in resp.json()
+    assert len(resp.json()["shops"]) == 1
+
+    shop = resp.json()["shops"][0]
+    assert "id" in shop
+    assert "name" in shop
+    assert "state" in shop
+    assert "url" in shop
+    assert "contact" in shop
+
+    assert shop["id"] == shop_db.id
+    assert shop["name"] == shop_db.name
+    assert shop["state"] == shop_db.state
+    assert shop["url"] == shop_db.url
+
+    assert "email" in shop["contact"]
+    assert shop["contact"]["email"] == shop_user_db.email

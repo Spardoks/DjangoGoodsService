@@ -5,6 +5,7 @@ from backend.views import (
     ContactView,
     OrderView,
     list_products,
+    list_shops,
     login_user,
     logout_user,
     register_user,
@@ -32,4 +33,5 @@ urlpatterns = [
     path("basket/", BasketView.as_view(), name="basket"),
     path("products/", list_products, name="list_products"),
     path("orders/", OrderView.as_view(), name="orders"),
+    path("shops/", list_shops, name="list_shops"),
 ]
