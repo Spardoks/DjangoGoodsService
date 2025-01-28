@@ -13,6 +13,7 @@ from yaml import Loader
 from yaml import load as load_yaml
 
 from backend.models import (
+    STATE_CHOICES,
     USER_TYPE_CHOICES,
     Contact,
     Order,
@@ -537,7 +538,9 @@ class OrderView(APIView):
             if request.data["basket_id"].isdigit():
                 try:
                     is_updated = Order.objects.filter(
-                        user_id=request.user.id, id=request.data["basket_id"]
+                        user_id=request.user.id,
+                        id=request.data["basket_id"],
+                        state="basket",
                     ).update(contact_id=request.data["contact_id"], state="new")
                 except IntegrityError as error:
                     print(error)
@@ -547,7 +550,96 @@ class OrderView(APIView):
                     )
                 else:
                     if is_updated:
+                        # ToDo: вероятно, будет корректнее,
+                        # если исходную карзину удалить,
+                        # создать на каждый OrderItem в корзине отдельный заказ со статусом new
+                        # для правильной работы по оповещениям, изменениям статусов и отслеживаниям
                         # ToDo: отправить уведомление магазину о новом заказе
+                        return Response({"Status": True}, status=200)
+
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
+
+
+class PartnerOrderView(APIView):
+    """
+    Класс для получения и изменения статуса заказов пользователями
+    """
+
+    # получить мои заказы
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        if request.user.type != "shop":
+            return Response(
+                {"Status": False, "Error": "Только для магазинов"}, status=403
+            )
+
+        order = (
+            Order.objects.filter(
+                ordered_items__product_info__shop__user_id=request.user.id
+            )
+            .exclude(state="basket")
+            .prefetch_related(
+                "ordered_items__product_info__product__category",
+                "ordered_items__product_info__product_parameters__parameter",
+            )
+            .select_related("contact")
+            .annotate(
+                total_sum=Sum(
+                    F("ordered_items__quantity")
+                    * F("ordered_items__product_info__price")
+                )
+            )
+            .distinct()
+        )
+
+        serializer = OrderSerializer(order, many=True)
+        return Response({"Status": True, "orders": serializer.data}, status=200)
+
+    # обновить статус заказа
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        if request.user.type != "shop":
+            return Response(
+                {"Status": False, "Error": "Только для магазинов"}, status=403
+            )
+
+        if {"order_id", "state"}.issubset(request.data):
+            correct_states = [
+                state[0] for state in STATE_CHOICES if state[0] != "basket"
+            ]
+            if request.data["state"] not in correct_states:
+                return Response(
+                    {"Status": False, "Error": "Неправильно указаны аргументы"},
+                    status=403,
+                )
+            if request.data["order_id"].isdigit():
+                try:
+                    is_updated = Order.objects.filter(
+                        ordered_items__product_info__shop__user_id=request.user.id,
+                        id=request.data["order_id"],
+                    ).update(
+                        state=request.data["state"],
+                    )
+                except IntegrityError as error:
+                    print(error)
+                    return Response(
+                        {"Status": False, "Error": "Неправильно указаны аргументы"},
+                        status=403,
+                    )
+                else:
+                    if is_updated:
+                        # ToDo: отправить уведомление пользователю об изменении статуса
                         return Response({"Status": True}, status=200)
 
         return Response(
@@ -570,33 +662,3 @@ def list_shops(request):
     except Exception as e:
         return Response({"Status": False, "Error": str(e)}, status=403)
     return Response({"Status": True, "shops": serializer.data}, status=200)
-
-
-@api_view(["GET"])
-def list_shop_orders(request):
-    if not request.user.is_authenticated:
-        return Response(
-            {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
-        )
-
-    if request.user.type != "shop":
-        return Response({"Status": False, "Error": "Только для магазинов"}, status=403)
-
-    order = (
-        Order.objects.filter(ordered_items__product_info__shop__user_id=request.user.id)
-        .exclude(state="basket")
-        .prefetch_related(
-            "ordered_items__product_info__product__category",
-            "ordered_items__product_info__product_parameters__parameter",
-        )
-        .select_related("contact")
-        .annotate(
-            total_sum=Sum(
-                F("ordered_items__quantity") * F("ordered_items__product_info__price")
-            )
-        )
-        .distinct()
-    )
-
-    serializer = OrderSerializer(order, many=True)
-    return Response({"Status": True, "orders": serializer.data}, status=200)

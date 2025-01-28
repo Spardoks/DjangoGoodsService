@@ -874,7 +874,7 @@ def test_create_and_get_order_example():
 
 
 @pytest.mark.django_db
-def test_get_shop_orders_example():
+def test_get_and_update_shop_order_example():
     shop_email = "shop@test.com"
     shop_password = "shop_password"
     shop_user_db = User.objects.create_user(
@@ -928,7 +928,7 @@ def test_get_shop_orders_example():
     assert resp.status_code == 200, resp.json()["Error"]
 
     header = {"Authorization": f"Token {resp.json()['token']}"}
-    url = reverse("list_shop_orders")
+    url = reverse("partner_orders")
     resp = client.get(url, headers=header)
     assert resp.status_code == 200, resp.json()["Error"]
     assert "Status" in resp.json()
@@ -1008,6 +1008,16 @@ def test_get_shop_orders_example():
     assert product_info["product"]["name"] == product_db.name
     assert product_info["product"]["category"] == product_db.category.name
 
+    data = {"order_id": order_db.id, "state": "confirmed"}
+    url = reverse("partner_orders")
+    resp = client.post(url, data, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    order_db.refresh_from_db()
+    assert order_db.state == "confirmed"
+
 
 # shops
 ##############################################
@@ -1016,11 +1026,13 @@ def test_get_shop_orders_example():
 @pytest.mark.django_db
 def test_get_shops_list():
     shop_user_db = User.objects.create_user(email="shop@test.com", type="shop")
-    shop_db = Shop.objects.create(name="test_shop", user=shop_user_db, state=True, url="https://test_shop.com")
+    shop_db = Shop.objects.create(
+        name="test_shop", user=shop_user_db, state=True, url="https://test_shop.com"
+    )
 
     client = APIClient()
     url = reverse("list_shops")
-    params = {"shop_id": shop_db.id} # or empty for all shops
+    params = {"shop_id": shop_db.id}  # or empty for all shops
     resp = client.get(url, params)
     assert resp.status_code == 200, resp.json()["Error"]
     assert "Status" in resp.json()
