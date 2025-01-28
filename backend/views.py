@@ -570,3 +570,33 @@ def list_shops(request):
     except Exception as e:
         return Response({"Status": False, "Error": str(e)}, status=403)
     return Response({"Status": True, "shops": serializer.data}, status=200)
+
+
+@api_view(["GET"])
+def list_shop_orders(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+        )
+
+    if request.user.type != "shop":
+        return Response({"Status": False, "Error": "Только для магазинов"}, status=403)
+
+    order = (
+        Order.objects.filter(ordered_items__product_info__shop__user_id=request.user.id)
+        .exclude(state="basket")
+        .prefetch_related(
+            "ordered_items__product_info__product__category",
+            "ordered_items__product_info__product_parameters__parameter",
+        )
+        .select_related("contact")
+        .annotate(
+            total_sum=Sum(
+                F("ordered_items__quantity") * F("ordered_items__product_info__price")
+            )
+        )
+        .distinct()
+    )
+
+    serializer = OrderSerializer(order, many=True)
+    return Response({"Status": True, "orders": serializer.data}, status=200)
