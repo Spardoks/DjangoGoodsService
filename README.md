@@ -1,7 +1,7 @@
 # DjangoGoodsService
 
-https://github.com/netology-code/python-final-diplom
+[Референс](https://github.com/netology-code/python-final-diplom)
 
 ---
 
-[ToDo](./todo_and_progress.md)
+[Описание сервиса и прогресс его развития](./todo_and_progress.md)
