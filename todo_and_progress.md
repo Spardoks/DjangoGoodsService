@@ -237,6 +237,7 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 - ToDo: allure и размещение логически связанных api тестов в различные файлы
 - ToDo: все эндпоинты по спецификации
 - ToDo: автоматическая документация
+- ToDo: вынести из requirements.txt тестовый req aiosmtpd (и другие, которые не используются для работы сервиса) в test_reqs.txt
 
 ### Уделить внимание когда-нибудь
 - ci/cd

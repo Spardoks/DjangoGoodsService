@@ -3,3 +3,4 @@ djangorestframework
 pytest-django
 pyyaml
 requests
+aiosmtpd
