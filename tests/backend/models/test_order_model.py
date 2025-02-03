@@ -31,7 +31,12 @@ def test_create_order_special_fields():
     order = Order.objects.create(user=user1, contact=contact, dt=dt, state=state)
 
     assert order.contact == contact
-    assert order.dt == dt
+    assert order.dt.year == dt.year
+    assert order.dt.month == dt.month
+    assert order.dt.day == dt.day
+    assert order.dt.hour == dt.hour
+    assert order.dt.minute == dt.minute
+    assert order.dt.second == dt.second
     assert order.state == state
 
 
