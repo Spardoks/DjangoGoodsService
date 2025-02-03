@@ -31,6 +31,7 @@ from backend.serializers import (
     UserSerializer,
     import_shop,
 )
+from backend.signals import new_order
 
 
 # Сейчас используется для 401 Unauthorized приведения к единому виду
@@ -542,6 +543,7 @@ class OrderView(APIView):
                         id=request.data["basket_id"],
                         state="basket",
                     ).update(contact_id=request.data["contact_id"], state="new")
+                    order_id = request.data["basket_id"]
                 except IntegrityError as error:
                     print(error)
                     return Response(
@@ -550,11 +552,15 @@ class OrderView(APIView):
                     )
                 else:
                     if is_updated:
+                        # отправляем оповещение о новом заказе пользователю
+                        new_order.send(sender=self.__class__, user_id=request.user.id, order_id=order_id)
+
                         # ToDo: вероятно, будет корректнее,
                         # если исходную карзину удалить,
                         # создать на каждый OrderItem в корзине отдельный заказ со статусом new
                         # для правильной работы по оповещениям, изменениям статусов и отслеживаниям
-                        # ToDo: отправить уведомление магазину о новом заказе
+                        # отправляем оповещение о новом заказе магазину
+                        # new_order.send(sender=self.__class__, user_id=shop_id)
                         return Response({"Status": True}, status=200)
 
         return Response(
@@ -631,6 +637,7 @@ class PartnerOrderView(APIView):
                     ).update(
                         state=request.data["state"],
                     )
+                    user_id = Order.objects.get(id=request.data["order_id"]).contact.user.id
                 except IntegrityError as error:
                     print(error)
                     return Response(
@@ -639,7 +646,8 @@ class PartnerOrderView(APIView):
                     )
                 else:
                     if is_updated:
-                        # ToDo: отправить уведомление пользователю об изменении статуса
+                        # оповещение пользователя об изменении статуса заказа
+                        new_order.send(sender=self.__class__, user_id=user_id, order_id=request.data["order_id"])
                         return Response({"Status": True}, status=200)
 
         return Response(

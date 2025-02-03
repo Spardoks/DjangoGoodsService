@@ -3,6 +3,8 @@ import json
 
 import pytest
 import yaml
+from django.conf import settings
+from django.core import mail
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -746,6 +748,9 @@ def test_create_and_get_order_example():
         product=product_db, shop=shop_db, quantity=10, price=100, price_rrc=200
     )
 
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.EMAIL_HOST_USER = "noreply@goods_service.com"
+
     email = "test_user@test_mail.com"
     password = "test_password"
     user_db = User.objects.create_user(email=email, password=password, type="buyer")
@@ -872,6 +877,13 @@ def test_create_and_get_order_example():
     assert product_info["product"]["name"] == product_db.name
     assert product_info["product"]["category"] == product_db.category.name
 
+    # Проверка, что письмо было отправлено
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].subject == "Обновление статуса/создание заказа"
+    assert mail.outbox[0].body == f"Смотрите заказ {order_db.id}"
+    assert mail.outbox[0].from_email == settings.EMAIL_HOST_USER
+    assert mail.outbox[0].to == [email]
+
 
 @pytest.mark.django_db
 def test_get_and_update_shop_order_example():
@@ -887,6 +899,9 @@ def test_get_and_update_shop_order_example():
     product_info_db = ProductInfo.objects.create(
         product=product_db, shop=shop_db, quantity=10, price=100, price_rrc=200
     )
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.EMAIL_HOST_USER = "noreply@goods_service.com"
 
     email = "test_user@test_mail.com"
     password = "test_password"
@@ -1017,6 +1032,13 @@ def test_get_and_update_shop_order_example():
 
     order_db.refresh_from_db()
     assert order_db.state == "confirmed"
+
+    # Проверка, что письмо было отправлено
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].subject == "Обновление статуса/создание заказа"
+    assert mail.outbox[0].body == f"Смотрите заказ {order_db.id}"
+    assert mail.outbox[0].from_email == settings.EMAIL_HOST_USER
+    assert mail.outbox[0].to == [email]
 
 
 # shops
