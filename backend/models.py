@@ -234,6 +234,7 @@ class Contact(models.Model):
 
 STATE_CHOICES = (
     ("basket", "Статус корзины"),
+    ("processing", "В обработке"),
     ("new", "Новый"),
     ("confirmed", "Подтвержден"),
     ("assembled", "Собран"),

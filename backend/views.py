@@ -517,6 +517,7 @@ class OrderView(APIView):
         order = (
             Order.objects.filter(user_id=request.user.id)
             .exclude(state="basket")
+            .exclude(state="processing")
             .prefetch_related(
                 "ordered_items__product_info__product__category",
                 "ordered_items__product_info__product_parameters__parameter",
@@ -548,8 +549,8 @@ class OrderView(APIView):
                         user_id=request.user.id,
                         id=request.data["basket_id"],
                         state="basket",
-                    ).update(contact_id=request.data["contact_id"], state="new")
-                    order_id = request.data["basket_id"]
+                    ).update(contact_id=request.data["contact_id"], state="processing")
+
                 except IntegrityError as error:
                     print(error)
                     return Response(
@@ -558,20 +559,38 @@ class OrderView(APIView):
                     )
                 else:
                     if is_updated:
-                        # отправляем оповещение о новом заказе пользователю
-                        new_order.send(
-                            sender=self.__class__,
-                            user_id=request.user.id,
-                            order_id=order_id,
-                        )
+                        # разбиваем корзину на отдельные заказы для корректного их мониторинга и оповещения о них
+                        orders = []
+                        order_id = request.data["basket_id"]
+                        order = Order.objects.get(id=order_id)
+                        order_items = order.ordered_items.all()
+                        for order_item in order_items:
+                            current_order = Order.objects.create(
+                                user_id=request.user.id,
+                                contact_id=request.data["contact_id"],
+                                state="new",
+                            )
+                            order_item.order = current_order
+                            order_item.save()
 
-                        # ToDo: вероятно, будет корректнее,
-                        # если исходную карзину удалить,
-                        # создать на каждый OrderItem в корзине отдельный заказ со статусом new
-                        # для правильной работы по оповещениям, изменениям статусов и отслеживаниям
-                        # отправляем оповещение о новом заказе магазину
-                        # new_order.send(sender=self.__class__, user_id=shop_id)
-                        return Response({"Status": True}, status=200)
+                            # отправляем оповещение о новом заказе пользователю
+                            new_order.send(
+                                sender=self.__class__,
+                                user_id=request.user.id,
+                                order_id=current_order.id,
+                            )
+
+                            # отправляем оповещение о новом заказе магазину
+                            shop = order_item.product_info.shop
+                            new_order.send(
+                                sender=self.__class__,
+                                user_id=shop.user.id,
+                                order_id=current_order.id,
+                            )
+
+                            orders.append(current_order.id)
+                        order.delete()
+                        return Response({"Status": True, "orders": orders}, status=200)
 
         return Response(
             {"Status": False, "Error": "Не указаны все необходимые аргументы"},
@@ -601,6 +620,7 @@ class PartnerOrderView(APIView):
                 ordered_items__product_info__shop__user_id=request.user.id
             )
             .exclude(state="basket")
+            .exclude(state="processing")
             .prefetch_related(
                 "ordered_items__product_info__product__category",
                 "ordered_items__product_info__product_parameters__parameter",
