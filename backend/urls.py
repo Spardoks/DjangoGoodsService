@@ -5,6 +5,7 @@ from backend.views import (
     ContactView,
     OrderView,
     PartnerOrderView,
+    PartnerState,
     list_products,
     list_shops,
     login_user,
@@ -27,6 +28,7 @@ urlpatterns = [
     ),
     # other
     path("partner/update/", update_shop, name="update_shop"),
+    path("partner/state", PartnerState.as_view(), name="partner_state"),
     path("partner/orders/", PartnerOrderView.as_view(), name="partner_orders"),
     path("user/register/", register_user, name="register_user"),
     path("user/login/", login_user, name="login_user"),

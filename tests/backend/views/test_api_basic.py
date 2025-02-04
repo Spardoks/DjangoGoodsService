@@ -1077,3 +1077,44 @@ def test_get_shops_list():
 
     assert "email" in shop["contact"]
     assert shop["contact"]["email"] == shop_user_db.email
+
+
+@pytest.mark.django_db
+def test_change_shop_state_example():
+    email = "test1@test.com"
+    password = "test_password"
+    shop_user_db = User.objects.create_user(email=email, password=password, type="shop")
+    first_state = True
+    shop_db = Shop.objects.create(
+        name="test_shop",
+        user=shop_user_db,
+        state=first_state,
+        url="https://test_shop.com",
+    )
+    assert shop_db.state == first_state
+
+    client = APIClient()
+    url = reverse("login_user")
+    resp = client.post(url, {"email": email, "password": password})
+    assert resp.status_code == 200, resp.json()["Error"]
+
+    header = {"Authorization": f"Token {resp.json()['token']}"}
+    url = reverse("partner_state")
+    resp = client.get(url, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    assert "state" in resp.json()
+    assert resp.json()["state"] == first_state
+
+    second_state = False
+    data = {"state": second_state}
+    url = reverse("partner_state")
+    resp = client.post(url, data, headers=header)
+    assert resp.status_code == 200, resp.json()["Error"]
+    assert "Status" in resp.json()
+    assert resp.json()["Status"] == True
+
+    shop_db.refresh_from_db()
+    assert shop_db.state == second_state

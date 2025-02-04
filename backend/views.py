@@ -553,7 +553,11 @@ class OrderView(APIView):
                 else:
                     if is_updated:
                         # отправляем оповещение о новом заказе пользователю
-                        new_order.send(sender=self.__class__, user_id=request.user.id, order_id=order_id)
+                        new_order.send(
+                            sender=self.__class__,
+                            user_id=request.user.id,
+                            order_id=order_id,
+                        )
 
                         # ToDo: вероятно, будет корректнее,
                         # если исходную карзину удалить,
@@ -637,7 +641,9 @@ class PartnerOrderView(APIView):
                     ).update(
                         state=request.data["state"],
                     )
-                    user_id = Order.objects.get(id=request.data["order_id"]).contact.user.id
+                    user_id = Order.objects.get(
+                        id=request.data["order_id"]
+                    ).contact.user.id
                 except IntegrityError as error:
                     print(error)
                     return Response(
@@ -647,7 +653,11 @@ class PartnerOrderView(APIView):
                 else:
                     if is_updated:
                         # оповещение пользователя об изменении статуса заказа
-                        new_order.send(sender=self.__class__, user_id=user_id, order_id=request.data["order_id"])
+                        new_order.send(
+                            sender=self.__class__,
+                            user_id=user_id,
+                            order_id=request.data["order_id"],
+                        )
                         return Response({"Status": True}, status=200)
 
         return Response(
@@ -670,3 +680,50 @@ def list_shops(request):
     except Exception as e:
         return Response({"Status": False, "Error": str(e)}, status=403)
     return Response({"Status": True, "shops": serializer.data}, status=200)
+
+
+class PartnerState(APIView):
+    """
+    Класс для работы со статусом поставщика
+    """
+
+    # получить текущий статус
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        if request.user.type != "shop":
+            return Response(
+                {"Status": False, "Error": "Только для магазинов"}, status=403
+            )
+
+        shop = request.user.shop
+        return Response({"Status": True, "state": shop.state}, status=200)
+
+    # изменить текущий статус
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"Status": False, "Error": "Нужно быть залогиненным"}, status=403
+            )
+
+        if request.user.type != "shop":
+            return Response(
+                {"Status": False, "Error": "Только для магазинов"}, status=403
+            )
+        state = request.data.get("state")
+        if state:
+            try:
+                Shop.objects.filter(user_id=request.user.id).update(
+                    state=state
+                )
+                return Response({"Status": True}, status=200)
+            except ValueError as error:
+                return Response({"Status": False, "Error": str(error)}, status=403)
+
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )

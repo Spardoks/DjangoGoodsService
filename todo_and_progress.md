@@ -225,7 +225,6 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 
 #### По сути осталось:
 - ToDo: сброс пароля и подтверждение регистрации
-- ToDo: влкючение и отключение приёма заказов
 - ToDo: тест на работу с несколькими магазинами
 
 ### Уделить внимание, если получится
@@ -237,6 +236,7 @@ https://github.com/netology-code/python-final-diplom/blob/master/reference/step-
 - ToDo: все эндпоинты по спецификации
 - ToDo: автоматическая документация
 - ToDo: вынести из requirements.txt тестовый req aiosmtpd (и другие, которые не используются для работы сервиса) в test_reqs.txt
+- ToDo: разделить тесты api по файлам для упрощения их дальнейшего написания и анализа
 
 ### Уделить внимание когда-нибудь
 - ci/cd
