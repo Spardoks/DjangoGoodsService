@@ -1,4 +1,8 @@
 from django.urls import path
+from django_rest_passwordreset.views import (
+    reset_password_confirm,
+    reset_password_request_token,
+)
 
 from backend.views import (
     BasketView,
@@ -38,6 +42,14 @@ urlpatterns = [
         "user/safe_register/confirm",
         ConfirmAccount.as_view(),
         name="confirm_safe_register_user",
+    ),
+    # ToDo: override for common structure https://pypi.org/project/django-rest-passwordreset/
+    path("user/password_reset", reset_password_request_token, name="password_reset"),
+    # ToDo: override for common structure https://pypi.org/project/django-rest-passwordreset/
+    path(
+        "user/password_reset/confirm",
+        reset_password_confirm,
+        name="password_reset_confirm",
     ),
     path("user/login/", login_user, name="login_user"),
     path("user/logout/", logout_user, name="logout_user"),
