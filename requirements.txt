@@ -1,5 +1,6 @@
 django
 djangorestframework
+django-rest-passwordreset
 pytest-django
 pyyaml
 requests

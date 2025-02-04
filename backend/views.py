@@ -15,6 +15,7 @@ from yaml import load as load_yaml
 from backend.models import (
     STATE_CHOICES,
     USER_TYPE_CHOICES,
+    ConfirmEmailToken,
     Contact,
     Order,
     OrderItem,
@@ -31,7 +32,7 @@ from backend.serializers import (
     UserSerializer,
     import_shop,
 )
-from backend.signals import new_order
+from backend.signals import new_order, new_user_registered
 
 
 # Сейчас используется для 401 Unauthorized приведения к единому виду
@@ -217,6 +218,11 @@ def login_user(request):
 
     if not user.check_password(user_password):
         return Response({"Status": False, "Error": "Неверный пароль"}, status=403)
+
+    if not user.is_active:
+        return Response(
+            {"Status": False, "Error": "Пользователь не активирован"}, status=403
+        )
 
     token, created = Token.objects.get_or_create(user=user)
     if not created:
@@ -716,12 +722,104 @@ class PartnerState(APIView):
         state = request.data.get("state")
         if state:
             try:
-                Shop.objects.filter(user_id=request.user.id).update(
-                    state=state
-                )
+                Shop.objects.filter(user_id=request.user.id).update(state=state)
                 return Response({"Status": True}, status=200)
             except ValueError as error:
                 return Response({"Status": False, "Error": str(error)}, status=403)
+
+        return Response(
+            {"Status": False, "Error": "Не указаны все необходимые аргументы"},
+            status=403,
+        )
+
+
+class RegisterAccount(APIView):
+    """
+    Для регистрации пользователей, которым ещё нужно будет подтвердить себя
+    """
+
+    def post(self, request, *args, **kwargs):
+        # check mail
+        user_email = request.data.get("email")
+        if user_email is None:
+            print("Не указан emeil пользователя")
+            return Response(
+                {"Status": False, "Error": "Не указан emeil пользователя"}, status=403
+            )
+        try:
+            user = User.objects.get(email=user_email)
+        except User.DoesNotExist:
+            pass
+        else:
+            print("Пользователь уже существует")
+            return Response(
+                {"Status": False, "Error": "Пользователь уже существует"}, status=403
+            )
+
+        # check type
+        user_type = request.data.get("type")
+        if user_type not in [
+            USER_TYPE_CHOICES[i][0] for i in range(len(USER_TYPE_CHOICES))
+        ]:
+            print("Неверный тип пользователя")
+            return Response(
+                {"Status": False, "Error": "Неверный тип пользователя"},
+                status=403,
+            )
+
+        # check password
+        user_password = request.data.get("password")
+        if user_password is None:
+            print("Не указан пароль пользователя")
+            return Response(
+                {"Status": False, "Error": "Не указан пароль пользователя"},
+                status=403,
+            )
+
+        # create user
+        try:
+            user = User.objects.create_user(
+                email=user_email,
+                password=user_password,
+                type=user_type,
+                is_active=False,
+            )
+        except Exception:
+            print("Возникла ошибка при регистрации пользователя")
+            return Response(
+                {
+                    "Status": False,
+                    "Error": "Возникла ошибка при регистрации пользователя",
+                },
+                status=403,
+            )
+        new_user_registered.send(sender=self.__class__, user_id=user.id)
+        return Response({"Status": True}, status=200)
+
+
+class ConfirmAccount(APIView):
+    """
+    Класс для подтверждения почтового адреса
+    """
+
+    def post(self, request, *args, **kwargs):
+
+        # проверяем обязательные аргументы
+        if {"email", "token"}.issubset(request.data):
+
+            token = ConfirmEmailToken.objects.filter(
+                user__email=request.data["email"], key=request.data["token"]
+            ).first()
+            if token:
+                token.user.is_active = True
+                token.user.save()
+                token.delete()
+                return Response({"Status": True}, status=200)
+            else:
+                return Response(
+                    {"Status": False, "Error": "Неправильно указан токен или email"},
+                    status=403,
+                )
 
         return Response(
             {"Status": False, "Error": "Не указаны все необходимые аргументы"},
